@@ -1,4 +1,4 @@
-# `spyder` — fork bernardogoltz (Spyder 5.x)
+# `spyder` fork bernardogoltz (Spyder 5.x)
 
 ![setup-spyder](spyder/images/setup-spyder.gif)
 
