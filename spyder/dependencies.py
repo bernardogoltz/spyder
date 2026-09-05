@@ -12,6 +12,7 @@ import os.path as osp
 import sys
 
 # Local imports
+from spyder import __version__
 from spyder.config.base import _, is_pynsist, running_in_ci, running_in_mac_app
 from spyder.utils import programs
 
@@ -78,6 +79,15 @@ THREE_MERGE_REQVER = '>=0.1.1'
 # None for pynsist install for now
 # (check way to add dist.info/egg.info from packages without wheels available)
 WATCHDOG_REQVER = None if is_pynsist() else '>=0.10.3'
+
+# Loosen constraints to ensure dev versions still work.
+# Note: These must be kept in sync with the ones in setup.py, otherwise the
+# missing dependencies dialog complains about packages that our own installer
+# considers valid.
+if 'dev' in __version__:
+    PYLSP_REQVER = '>=1.12.0,<1.14.0'
+    QTCONSOLE_REQVER = '>=5.5.1,<5.7.0'
+    SPYDER_KERNELS_REQVER = '>=2.5.2,<2.7.0'
 
 
 # Optional dependencies
