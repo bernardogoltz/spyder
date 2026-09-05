@@ -139,7 +139,8 @@ class Application(SpyderPluginV2):
         container = self.get_container()
 
         # Show dialog with missing dependencies
-        if not running_under_pytest():
+        if (not running_under_pytest()
+                and self.get_conf('show_missing_dependencies')):
             container.compute_dependencies()
 
         # Check for updates

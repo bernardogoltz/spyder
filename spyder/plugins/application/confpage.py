@@ -68,6 +68,8 @@ class ApplicationConfigPage(PluginConfigPage):
         prompt_box = newcb(_("Prompt when exiting"), 'prompt_on_exit')
         popup_console_box = newcb(_("Show internal Spyder errors to report "
                                     "them to Github"), 'show_internal_errors')
+        missing_deps_box = newcb(_("Show missing dependencies at startup"),
+                                 'show_missing_dependencies')
         check_updates = newcb(_("Check for updates on startup"),
                               'check_updates_on_startup')
 
@@ -90,6 +92,7 @@ class ApplicationConfigPage(PluginConfigPage):
         advanced_layout.addWidget(single_instance_box)
         advanced_layout.addWidget(prompt_box)
         advanced_layout.addWidget(popup_console_box)
+        advanced_layout.addWidget(missing_deps_box)
         advanced_layout.addWidget(check_updates)
 
         advanced_widget = QWidget()
