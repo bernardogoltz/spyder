@@ -1,5 +1,7 @@
 # `spyder` — fork bernardogoltz (Spyder 5.x)
 
+![setup-spyder](spyder/images/setup-spyder.gif)
+
 *Copyright © 2009– [Spyder Project Contributors](https://github.com/spyder-ide/spyder/graphs/contributors)
 e outros (ver [AUTHORS.txt](AUTHORS.txt)). Alguns arquivos e ícones têm outra
 autoria/licença; ver [NOTICE.txt](NOTICE.txt).*
