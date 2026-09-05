@@ -23,6 +23,7 @@ from __future__ import print_function
 
 # Standard library imports
 from distutils.command.install_data import install_data
+import ast
 import io
 import os
 import os.path as osp
@@ -52,7 +53,24 @@ NAME = 'spyder'
 LIBNAME = 'spyder'
 WINDOWS_INSTALLER_NAME = os.environ.get('EXE_NAME')
 
-from spyder import __version__, __website_url__  #analysis:ignore
+
+def _spyder_meta():
+    """Read version without importing spyder (PEP 517 isolated builds)."""
+    path = osp.join(osp.dirname(osp.abspath(__file__)), 'spyder', '__init__.py')
+    info = None
+    website = 'https://www.spyder-ide.org/'
+    with io.open(path, encoding='utf-8') as fh:
+        for line in fh:
+            if line.startswith('version_info'):
+                info = ast.literal_eval(line.split('=', 1)[1].strip())
+            elif line.startswith('__website_url__'):
+                website = ast.literal_eval(line.split('=', 1)[1].strip())
+            if info is not None and line.startswith('__website_url__'):
+                break
+    return '.'.join(map(str, info)), website
+
+
+__version__, __website_url__ = _spyder_meta()
 
 
 # =============================================================================
@@ -110,6 +128,7 @@ def get_packages():
     Return package list.
     """
     packages = get_subpackages(LIBNAME)
+    packages += get_subpackages('setup_spyder')
     return packages
 
 
@@ -250,6 +269,8 @@ install_requires = [
     'textdistance>=4.2.0',
     'three-merge>=0.1.1',
     'watchdog>=0.10.3',
+    'rich>=13.9.0',
+    'claude-agent-sdk>=0.1.0; python_version>="3.10"',
 ]
 
 # Loosen constraints to ensure dev versions still work
@@ -262,8 +283,8 @@ if 'dev' in __version__:
     install_requires.append('spyder-kernels>=2.5.2,<2.7.0')
 
 extras_require = {
-    'test:platform_system == "Windows"': ['pywin32'],
     'test': [
+        'pywin32; platform_system == "Windows"',
         'coverage',
         'cython',
         'flaky',
@@ -314,6 +335,7 @@ spyder_plugins_entry_points = [
     'tours = spyder.plugins.tours.plugin:Tours',
     'variable_explorer = spyder.plugins.variableexplorer.plugin:VariableExplorer',
     'workingdir = spyder.plugins.workingdirectory.plugin:WorkingDirectory',
+    'claude_code = setup_spyder.plugin.plugin:ClaudeCodePlugin',
 ]
 
 spyder_completions_entry_points = [
@@ -331,6 +353,9 @@ setup_args['extras_require'] = extras_require
 setup_args['entry_points'] = {
     'gui_scripts': [
             'spyder = spyder.app.start:main'
+    ],
+    'console_scripts': [
+            'setup-spyder = setup_spyder.cli:main'
     ],
     'spyder.plugins': spyder_plugins_entry_points,
     'spyder.completions': spyder_completions_entry_points

@@ -67,22 +67,34 @@ logger.setLevel('INFO')
 
 def get_python_lsp_version():
     """Get current version to pass it to setuptools-scm."""
-    req_file = DEVPATH / 'requirements' / 'main.yml'
-    with open(req_file, 'r', encoding='utf-8') as f:
-        for line in f:
-            if 'python-lsp-server' not in line:
+    candidates = (
+        DEVPATH / 'requirements' / 'dev-uv.txt',
+        DEVPATH / 'requirements' / 'main.yml',
+    )
+    for req_file in candidates:
+        if not req_file.is_file():
+            continue
+        with open(req_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                if 'python-lsp-server' not in line:
+                    continue
+                line = line.strip().lstrip('- ').strip()
+                if line.startswith('#'):
+                    continue
+                name, _, spec = line.partition(' ')
+                if '>=' in name or '==' in name or '<' in name:
+                    req = Requirement(name)
+                else:
+                    req = Requirement(name + spec.replace(' ', ''))
+                specifiers = req.specifier
+                break
+            else:
                 continue
-            line = line.split('-')[-1]
-            specifiers = Requirement(line).specifier
-            break
-        else:
-            return "0.0.0"
-
-    for specifier in specifiers:
-        if "=" in specifier.operator:
-            return specifier.version
-    else:
-        return "0.0.0"
+        for specifier in specifiers:
+            if '=' in specifier.operator:
+                return specifier.version
+        return '0.0.0'
+    return '0.0.0'
 
 
 def install_repo(name, not_editable=False):

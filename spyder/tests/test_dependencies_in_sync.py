@@ -231,6 +231,10 @@ def test_dependencies_for_spyder_setup_install_requires_in_sync():
     # We don't declare python.app as a dependency in other places
     full_reqs.pop('python.app')
 
+    # Personal launcher (uv / Claude Code) — not part of the upstream conda pin.
+    spyder_setup.pop('rich', None)
+    spyder_setup.pop('claude-agent-sdk', None)
+
     assert spyder_setup == full_reqs
 
 
