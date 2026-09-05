@@ -32,7 +32,7 @@ RUN_SLOW = os.environ.get('RUN_SLOW', None) == 'true'
 def run_pytest(run_slow=False, extra_args=None):
     """Run pytest tests for Spyder."""
     # Be sure to ignore subrepos
-    pytest_args = ['-vv', '-rw', '--durations=10', '--ignore=./external-deps',
+    pytest_args = ['-vv', '-rw', '--durations=10', '--ignore=./setup-spyder',
                    '-W ignore::UserWarning', '--timeout=120']
 
     if CI:

@@ -5,34 +5,29 @@
 # (see spyder/__init__.py for details)
 
 """
-Spyder
-======
+Spyder (fork bernardogoltz/spyder)
+==================================
 
-The Scientific Python Development Environment
+The Scientific Python Development Environment, Spyder 5.x API.
 
-Spyder is a powerful scientific environment written in Python, for Python,
-and designed by and for scientists, engineers and data analysts.
-
-It features a unique combination of the advanced editing, analysis, debugging
-and profiling functionality of a comprehensive development tool with the data
-exploration, interactive execution, deep inspection and beautiful visualization
-capabilities of a scientific package.
+This fork is published only through Git. The launcher that opens it in a
+project's ``.venv`` (``setup-spyder``) and the AI Terminal plugin live in the
+separate ``setup-spyder`` distribution (submodule ``setup-spyder/``); this
+package must not ship any ``setup_spyder`` module or console script, or the
+IDE would shadow the launcher.
 """
 
 from __future__ import print_function
 
 # Standard library imports
-from distutils.command.install_data import install_data
 import ast
 import io
 import os
 import os.path as osp
-import subprocess
 import sys
 
 # Third party imports
-from setuptools import setup, find_packages
-from setuptools.command.install import install
+from setuptools import setup
 
 
 # =============================================================================
@@ -51,7 +46,6 @@ if v[0] >= 3 and v[:2] < (3, 8):
 # =============================================================================
 NAME = 'spyder'
 LIBNAME = 'spyder'
-WINDOWS_INSTALLER_NAME = os.environ.get('EXE_NAME')
 
 
 def _spyder_meta():
@@ -105,63 +99,11 @@ def get_subpackages(name):
     return splist
 
 
-def get_data_files():
-    """
-    Return data_files in a platform dependent manner.
-    """
-    if sys.platform.startswith('linux'):
-        data_files = [('share/applications', ['scripts/spyder.desktop']),
-                      ('share/icons', ['img_src/spyder.png']),
-                      ('share/metainfo',
-                       ['scripts/org.spyder_ide.spyder.appdata.xml'])]
-    elif os.name == 'nt':
-        data_files = [('scripts', ['img_src/spyder.ico',
-                                   'img_src/spyder_reset.ico'])]
-    else:
-        data_files = []
-
-    return data_files
-
-
 def get_packages():
     """
-    Return package list.
+    Return package list: only the ``spyder`` package and its subpackages.
     """
-    packages = get_subpackages(LIBNAME)
-    packages += get_subpackages('setup_spyder')
-    return packages
-
-
-# =============================================================================
-# Make Linux detect Spyder desktop file (will not work with wheels)
-# =============================================================================
-class CustomInstallData(install_data):
-
-    def run(self):
-        install_data.run(self)
-        if sys.platform.startswith('linux'):
-            try:
-                subprocess.call(['update-desktop-database'])
-            except:
-                print("ERROR: unable to update desktop database",
-                      file=sys.stderr)
-
-
-CMDCLASS = {'install_data': CustomInstallData}
-
-
-# =============================================================================
-# Main scripts
-# =============================================================================
-# NOTE: the '[...]_win_post_install.py' script is installed even on non-Windows
-# platforms due to a bug in pip installation process
-# See spyder-ide/spyder#1158.
-SCRIPTS = ['%s_win_post_install.py' % NAME]
-
-SCRIPTS.append('spyder')
-
-if os.name == 'nt':
-    SCRIPTS += ['spyder.bat']
+    return get_subpackages(LIBNAME)
 
 
 # =============================================================================
@@ -185,10 +127,11 @@ with io.open('README.md', encoding='utf-8') as f:
 setup_args = dict(
     name=NAME,
     version=__version__,
-    description='The Scientific Python Development Environment',
+    description='The Scientific Python Development Environment '
+                '(bernardogoltz fork, Spyder 5.x API)',
     long_description=LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
-    download_url=__website_url__ + "#fh5co-download",
+    download_url='https://github.com/bernardogoltz/spyder',
     author="The Spyder Project Contributors",
     author_email="spyder.python@gmail.com",
     url=__website_url__,
@@ -197,8 +140,6 @@ setup_args = dict(
     platforms=["Windows", "Linux", "Mac OS-X"],
     packages=get_packages(),
     package_data={LIBNAME: get_package_data(LIBNAME, EXTLIST)},
-    scripts=[osp.join('scripts', fname) for fname in SCRIPTS],
-    data_files=get_data_files(),
     python_requires='>=3.8',
     classifiers=[
         'License :: OSI Approved :: MIT License',
@@ -218,7 +159,6 @@ setup_args = dict(
         'Topic :: Scientific/Engineering',
         'Topic :: Software Development :: Widget Sets',
     ],
-    cmdclass=CMDCLASS,
 )
 
 
@@ -269,8 +209,6 @@ install_requires = [
     'textdistance>=4.2.0',
     'three-merge>=0.1.1',
     'watchdog>=0.10.3',
-    'rich>=13.9.0',
-    'claude-agent-sdk>=0.1.0; python_version>="3.10"',
 ]
 
 # Loosen constraints to ensure dev versions still work
@@ -335,7 +273,6 @@ spyder_plugins_entry_points = [
     'tours = spyder.plugins.tours.plugin:Tours',
     'variable_explorer = spyder.plugins.variableexplorer.plugin:VariableExplorer',
     'workingdir = spyder.plugins.workingdirectory.plugin:WorkingDirectory',
-    'claude_code = setup_spyder.plugin.plugin:ClaudeCodePlugin',
 ]
 
 spyder_completions_entry_points = [
@@ -354,13 +291,9 @@ setup_args['entry_points'] = {
     'gui_scripts': [
             'spyder = spyder.app.start:main'
     ],
-    'console_scripts': [
-            'setup-spyder = setup_spyder.cli:main'
-    ],
     'spyder.plugins': spyder_plugins_entry_points,
     'spyder.completions': spyder_completions_entry_points
 }
-setup_args.pop('scripts', None)
 
 
 # =============================================================================

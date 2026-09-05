@@ -1,12 +1,12 @@
 # Plano revisado — `setup-spyder` + AI Terminal para Spyder 5.x
 
-Revisado em 2026-09-04.
+Revisado em 2026-09-04. A seção 2.5 fixa o Spyder entregue: fork `bernardogoltz/spyder` via GitHub, não o pacote oficial nem um path local.
 
 ## 1. Objetivo
 
 Evoluir o módulo **já existente** `setup-spyder` para que ele:
 
-1. inicie o Spyder 5.x instalado no ambiente virtual do projeto;
+1. inicie o Spyder customizado (`bernardogoltz/spyder`, API 5.x) instalado no ambiente virtual do projeto, não o pacote oficial do PyPI;
 2. use um perfil isolado, sem alterar a configuração global do usuário;
 3. carregue um plugin externo chamado **AI Terminal**;
 4. execute, dentro desse painel, uma CLI interativa real como `codex` ou `claude`;
@@ -17,7 +17,7 @@ Fluxo esperado:
 ```text
 projeto/.venv
     └─ uv run setup-spyder --agent codex
-          └─ Spyder 5.x com perfil isolado
+          └─ Spyder customizado (GitHub) com perfil isolado
                 └─ painel "AI Terminal"
                       └─ Codex CLI em um PTY/ConPTY, no diretório do projeto
 ```
@@ -43,7 +43,7 @@ uv run setup-spyder --agent none
 
 O MVP estará pronto quando um pacote instalado por wheel:
 
-- abrir o Spyder 5 a partir do Python do projeto;
+- abrir o Spyder customizado a partir do Python do projeto (instalado da internet, não de um path local);
 - descobrir o plugin pelo entry point `spyder.plugins`;
 - mostrar um terminal que preserve ANSI, entrada interativa, redimensionamento e `Ctrl+C`;
 - iniciar `codex` ou `claude` diretamente, sem shell intermediário;
@@ -104,13 +104,58 @@ Autenticação, modelo, retomada de sessão e permissões continuam sendo respon
 
 ### 2.4 Compatibilidade-alvo
 
-- Dependência publicada: `spyder>=5.5,<6`.
-- Baseline de integração: Spyder 5.5.6.
-- Fork de desenvolvimento atual: Spyder `5.6.0.dev0`, commit `81226b9f214d5a69992852cc4f61c665e145af6a`.
+- IDE entregue: o fork `bernardogoltz/spyder` (hoje `5.6.0.dev0`, API Spyder 5.x), **não** o pacote `spyder` oficial do PyPI.
+- Superfície de API: Spyder 5.x (`>=5.5,<6`). O 5.5.6 oficial permanece só como referência de API, não como dependência nem como o binário que o launcher abre.
 - Python: manter a faixa já declarada por `setup-spyder` (`>=3.9`) até que as dependências do terminal imponham uma restrição comprovada.
-- Ambiente recomendado de desenvolvimento: Python 3.11, coerente com o `.python-version` atual do pacote.
+- Ambiente recomendado ao desenvolver o fork: Python 3.12 (`pyqt5<5.16` não tem wheel confiável acima disso). O `.python-version` 3.11 do launcher continua válido para a suíte do pacote.
 
-O fork local serve para desenvolvimento e validação, mas o pacote publicado não deve conter caminho absoluto ou dependência editável apontando para ele.
+### 2.5 O Spyder instalado é o fork publicado na internet
+
+`uv add setup-spyder` / `uv run setup-spyder` tem de instalar e abrir **esta** instância customizada, recuperável da internet, em qualquer máquina. Não aponta para um checkout local e não resolve o Spyder oficial.
+
+| Opção | Resultado | Decisão |
+| --- | --- | --- |
+| `spyder>=5.5,<6` no PyPI | Instala Spyder-IDE 5.5.6, não este fork | Não usar como fonte |
+| Path local (`../..`, `C:\Users\...`, `--editable`) | Só funciona nesta máquina; vaza no artefato | Proibido no pacote publicado |
+| `[tool.uv.sources]` só no `pyproject.toml` | Não viaja na wheel; `pip`/`uvx` voltam ao PyPI oficial | Insuficiente sozinho |
+| URL Git na dependência publicada | Qualquer consumidor baixa o fork | Canal do MVP |
+| Republicar o fork no PyPI com o nome `spyder` | Nome já ocupado pelo Spyder oficial | Impossível |
+| Outro nome de distribuição no PyPI, import `spyder` | Índice próprio, sem Git em runtime | Evolução posterior, não bloqueia o MVP |
+
+Dependência publicada do launcher (pin em tag ou commit, nunca path e nunca `main` flutuante):
+
+```toml
+dependencies = [
+  "pandas>=2.0",
+  "rich>=13.9",
+  "spyder @ git+https://github.com/bernardogoltz/spyder.git@<tag-ou-commit>",
+]
+```
+
+A versão do fork é pré-release (`5.6.0.dev0`). Sem aceitar pré-release, o resolvedor ignora o Git e cai no 5.5.6 oficial:
+
+```toml
+[tool.uv]
+prerelease = "allow"
+```
+
+A URL PEP 508 precisa estar em `[project].dependencies` (entra no METADATA da wheel). `[tool.uv.sources]` no repositório do launcher é atalho de desenvolvimento, não substitui isso.
+
+Confirmação depois de instalar:
+
+```powershell
+uv run python -c "import spyder; print(spyder.__version__)"
+```
+
+Tem de imprimir a versão do fork (`5.6.0.dev0` ou a tag pinada), não `5.5.6`.
+
+Regras:
+
+- Nenhum caminho absoluto ou instalação editável deste checkout entra no artefato, no `METADATA` ou no `uv.lock` publicado.
+- `setup-spyder-integration` (GitHub ou `--local`) também tem de resolver o fork pela URL publicada. `--local` testa o launcher ainda não enviado; não troca o Spyder por um path.
+- O override Git puxa o pacote `spyder`. `spyder-kernels`, `python-lsp-server` e `qtconsole` continuam do PyPI, salvo falha reproduzível que exija os subrepos.
+- Customizações que são “deste IDE” (defaults, patches) vivem em `bernardogoltz/spyder` e viajam com o Git. Launcher, perfil isolado e o plugin **AI Terminal** vivem em `setup-spyder`.
+- O fork **deixa de empacotar** `setup_spyder/` na distribuição `spyder` (`get_subpackages('setup_spyder')`, console script `setup-spyder`, entry point interno `claude_code`). Senão, instalar os dois pacotes cria dois módulos `setup_spyder` e o IDE sombra o launcher. O plugin `setup_spyder_ai` registra-se só no `pyproject.toml` do `setup-spyder`.
 
 ## 3. Arquitetura proposta
 
@@ -191,19 +236,19 @@ setup_spyder_ai = "setup_spyder.plugin.plugin:AITerminalPlugin"
 
 O valor de `AITerminalPlugin.NAME` deve ser exatamente `setup_spyder_ai`, pois o Spyder valida a igualdade entre o nome do entry point e o nome declarado pelo plugin.
 
-Dependências de PTY devem ser condicionais por plataforma e fixadas somente após o protótipo validar versões compatíveis:
+Dependências de PTY devem ser condicionais por plataforma e fixadas somente após o protótipo validar versões compatíveis. A dependência de Spyder segue a seção 2.5 (URL Git do fork, pinada, com pré-release permitido):
 
 ```toml
 dependencies = [
   "pandas>=2.0",
   "rich>=13.9",
-  "spyder>=5.5,<6",
+  "spyder @ git+https://github.com/bernardogoltz/spyder.git@<tag-ou-commit>",
   "pywinpty>=2; platform_system == 'Windows'",
   "ptyprocess>=0.7; platform_system != 'Windows'",
 ]
 ```
 
-Os limites acima são ilustrativos até a fase de compatibilidade. Não adicionar `claude-agent-sdk` nem SDK da OpenAI ao MVP.
+Os limites de PTY acima são ilustrativos até a fase de compatibilidade. Não adicionar `claude-agent-sdk` nem SDK da OpenAI ao MVP. Não substituir a URL Git por `spyder>=5.5,<6` do PyPI nem por path local.
 
 ## 5. Launcher e perfis
 
@@ -371,7 +416,7 @@ Não desabilitar globalmente caixas de erro, avisos de dependência ou mensagens
 - criar uma matriz mínima Spyder/Python/SO;
 - validar o carregamento de um plugin externo vazio a partir de uma wheel.
 
-**Saída:** entry point descoberto no Spyder 5.5.6 e no fork local, sem editar o núcleo do Spyder.
+**Saída:** entry point descoberto no Spyder customizado instalado a partir do GitHub (`bernardogoltz/spyder`), sem editar o núcleo além de deixar de empacotar `setup_spyder` dentro da distribuição `spyder`.
 
 ### Fase 1 — Protótipo vertical do terminal
 
@@ -427,10 +472,12 @@ Não desabilitar globalmente caixas de erro, avisos de dependência ou mensagens
 
 - testar wheel e sdist em ambientes limpos, não apenas instalação editável;
 - validar que assets, entry point e dependências condicionais estão no artefato;
+- validar que o METADATA puxa `bernardogoltz/spyder` por URL Git pinada, sem path local e sem o Spyder oficial;
+- testar `uv add --dev setup-spyder` numa máquina sem o checkout do fork e confirmar `spyder.__version__` do fork;
 - testar upgrade de `setup-spyder` 0.2.0;
 - atualizar changelog e publicar uma versão minor, sugerida `0.3.0`.
 
-**Saída:** instalação reproduzível com `uv add --dev setup-spyder` e execução com `uv run setup-spyder`.
+**Saída:** instalação reproduzível com `uv add --dev setup-spyder` (pré-release permitido) e execução com `uv run setup-spyder` abrindo o fork, não o Spyder oficial.
 
 ## 10. Estratégia de testes
 
@@ -473,8 +520,8 @@ Não depender de rede, conta ou credencial real nesses testes.
 
 ### Integração/E2E
 
-- instalar a wheel em ambiente limpo;
-- abrir Spyder 5.5.6 e o fork `5.6.0.dev0`;
+- instalar a wheel em ambiente limpo, sem checkout local do fork;
+- abrir o Spyder customizado resolvido pela URL publicada (`5.6.0.dev0` ou a tag pinada), não o 5.5.6 oficial;
 - validar projeto com espaços e caracteres não ASCII no caminho;
 - abrir dois projetos com perfis distintos;
 - confirmar que o kernel usa o Python do projeto;
@@ -499,7 +546,10 @@ Não depender de rede, conta ou credencial real nesses testes.
 - [ ] A wheel contém o entry point e todos os assets web.
 - [ ] O Spyder abre mesmo sem CLI ou backend PTY disponível.
 - [ ] O perfil do projeto não sobrescreve preferências em toda inicialização.
-- [ ] O pacote não contém caminho absoluto para o fork local.
+- [ ] O pacote não contém caminho absoluto nem dependência editável para um checkout local.
+- [ ] `uv add setup-spyder` instala o Spyder de `github.com/bernardogoltz/spyder`, não o pacote oficial do PyPI.
+- [ ] A versão importável de `spyder` é a do fork pinado, não `5.5.6`.
+- [ ] A distribuição `spyder` do fork não empacota `setup_spyder` nem o script `setup-spyder`.
 - [ ] O projeto não exige Conda.
 
 
@@ -507,17 +557,22 @@ Não depender de rede, conta ou credencial real nesses testes.
 ## 12. Riscos e mitigação
 
 
-| Risco                                                      | Mitigação                                                              |
-| ---------------------------------------------------------- | ---------------------------------------------------------------------- |
-| APIs internas divergirem entre Spyder 5.5 e o fork 5.6.dev | limitar o uso à API pública de plugins e testar ambas as versões       |
-| Comportamento diferente de PTY no Windows/POSIX            | backends isolados, testes de contrato comuns e CI por plataforma       |
-| `QWebEngine` ausente ou desabilitado                       | verificação de compatibilidade e erro restrito ao painel               |
-| Plugin sumir por `ImportError` no carregamento             | imports tardios, teste da wheel e preservação de stderr/logs           |
-| Processo do agente sobreviver ao Spyder                    | process group/job object, timeout e encerramento escalonado            |
-| Perfil persistente ser usado por duas instâncias           | respeitar instância única e bloquear o perfil de projeto               |
-| Mudança de flags das CLIs                                  | iniciar o comando-base e não hardcodar modelo/opções frágeis           |
-| Terminal incorporado ampliar superfície de ataque          | assets locais, sem listener TCP, sem shell e sem comandos concatenados |
-| Confusão entre `uvx` e ambiente do projeto                 | documentar `uv add --dev` + `uv run` como caminho canônico             |
+| Risco | Mitigação |
+| --- | --- |
+| `spyder>=5.5,<6` resolver o 5.5.6 oficial | URL Git do fork em `[project].dependencies` + `prerelease = "allow"` |
+| Path local vazar no artefato | proibir `--editable`/path no METADATA e no lock publicado; pin Git |
+| `[tool.uv.sources]` não viajar na wheel | a URL PEP 508 vive nas dependências do projeto, não só no uv |
+| Dois módulos `setup_spyder` (fork + launcher) | o fork deixa de empacotar `setup_spyder`; o plugin registra-se só no launcher |
+| Instalar o Spyder oficial por cima do fork (mesmo nome) | documentar que o launcher puxa o Git; não misturar `uv add spyder` do PyPI |
+| APIs internas divergirem entre 5.5 e o fork 5.6.dev | limitar o uso à API pública de plugins; o binário alvo é só o fork |
+| Comportamento diferente de PTY no Windows/POSIX | backends isolados, testes de contrato comuns e CI por plataforma |
+| `QWebEngine` ausente ou desabilitado | verificação de compatibilidade e erro restrito ao painel |
+| Plugin sumir por `ImportError` no carregamento | imports tardios, teste da wheel e preservação de stderr/logs |
+| Processo do agente sobreviver ao Spyder | process group/job object, timeout e encerramento escalonado |
+| Perfil persistente ser usado por duas instâncias | respeitar instância única e bloquear o perfil de projeto |
+| Mudança de flags das CLIs | iniciar o comando-base e não hardcodar modelo/opções frágeis |
+| Terminal incorporado ampliar superfície de ataque | assets locais, sem listener TCP, sem shell e sem comandos concatenados |
+| Confusão entre `uvx` e ambiente do projeto | documentar `uv add --dev` + `uv run` como caminho canônico |
 
 
 
@@ -542,11 +597,13 @@ Possíveis recursos futuros:
 
 ### Código local
 
-- `[setup.py](../setup.py)` — registro e descoberta de plugins no fork.
+- `[setup.py](../setup.py)` — registro e descoberta de plugins no fork; ponto de remoção do `setup_spyder` empacotado.
 - `[spyder/app/find_plugins.py](../spyder/app/find_plugins.py)` — validação dos entry points externos.
 - `[spyder/api/plugins/new_api.py](../spyder/api/plugins/new_api.py)` — API `SpyderDockablePlugin` do Spyder 5.
 - `[spyder/config/base.py](../spyder/config/base.py)` — resolução de `SPYDER_CONFDIR`.
 - `[spyder/app/cli_options.py](../spyder/app/cli_options.py)` — opções reais da CLI do Spyder.
+- `https://github.com/bernardogoltz/spyder` — origem publicada do IDE que o launcher instala.
+- `https://github.com/bernardogoltz/setup-spyder` — origem publicada do launcher (submódulo em `external-deps/setup-spyder`).
 
 
 

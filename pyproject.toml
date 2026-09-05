@@ -1,15 +1,11 @@
 # Este arquivo impede o uv de subir a árvore e achar um pyproject.toml pai.
 #
-# O pacote continua definido em setup.py (setuptools). Não declare [project]
-# aqui: o setuptools passaria a tratá-lo como fonte da verdade.
+# O pacote `spyder` continua definido em setup.py (setuptools). Não declare
+# [project] aqui: o setuptools passaria a tratá-lo como fonte da verdade.
 #
-# Neste checkout:
-#   uv venv --python 3.12
-#   uv pip install -e . --prerelease=allow
-#
-# Em outro projeto (o fluxo do dia a dia):
-#   uv add --editable C:/Users/angel/Documents/projetos/spyder --prerelease=allow
-#   uv run setup-spyder
+# Este fork é consumido pelo launcher `setup-spyder` (submódulo setup-spyder/)
+# por URL Git pinada, nunca por path local. Ambiente de desenvolvimento deste
+# checkout: veja README.md e .claude/skills/spyder-dev-ambiente/SKILL.md.
 
 [build-system]
 requires = ["setuptools>=64", "wheel"]

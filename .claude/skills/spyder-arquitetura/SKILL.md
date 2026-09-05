@@ -31,7 +31,7 @@ Cuidado ao buscar na internet: a API do Spyder 6 mudou bastante (Run API nova,
 | `spyder/app/` | Bootstrap: `start.py`, `mainwindow.py`, `find_plugins.py`, `cli_options.py`. |
 | `spyder/images/`, `spyder/fonts/` | Assets. Ícones legados em PNG/SVG; os novos vêm do qtawesome. |
 | `spyder/locale/` | Traduções (`.po`/`.mo`), gerenciadas pelo Crowdin. |
-| `external-deps/` | Subrepos: `spyder-kernels`, `python-lsp-server`, `qtconsole`. Não editar sem intenção. |
+| `setup-spyder/` | Submódulo (repo próprio): launcher `setup-spyder`, perfis, plugin AI Terminal e a suíte do plano. `spyder-kernels`, `python-lsp-server` e `qtconsole` vêm do PyPI (não há `external-deps/`). |
 | `installers/`, `installers-conda/` | Empacotamento. Irrelevante para customização pessoal. |
 
 Regra prática: se a pergunta é "onde está a feature X?", olhe primeiro

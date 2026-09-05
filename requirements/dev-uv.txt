@@ -1,7 +1,14 @@
-# Equivalente pip/uv de requirements/main.yml + windows.yml + tests.yml,
-# para uso com `uv venv` em vez de conda neste checkout pessoal.
-# Se os .yml conda mudarem, atualize aqui também.
+# Dependências de desenvolvimento deste checkout, para `uv pip install -r`
+# num venv do uv (sem conda). setup.py continua sendo a fonte da verdade das
+# dependências de runtime; este arquivo só junta runtime + testes + o que o
+# launcher/plugin do submódulo setup-spyder/ precisa para ser testado daqui.
+#
+#   uv venv --python 3.12
+#   uv pip install -r requirements/dev-uv.txt
+#   uv pip install -e . --no-deps
+#   uv pip install -e ./setup-spyder --no-deps
 
+# runtime (setup.py, faixa "dev" já afrouxada)
 atomicwrites>=1.2.0
 chardet>=2.0.0
 cloudpickle>=0.5.0
@@ -27,32 +34,33 @@ pyls-spyder>=0.4.0
 pyqt5>=5.10,<5.16
 pyqtwebengine>=5.10,<5.16
 python-lsp-black>=2.0.0,<3.0.0
-python-lsp-server>=1.12.0,<1.13.0
+python-lsp-server[all]>=1.12.0,<1.14.0
 pyzmq>=24.0.0
 qdarkstyle>=3.2.0,<3.3.0
 qstylizer>=0.2.2
 qtawesome>=1.3.1,<1.4.0
-qtconsole>=5.5.1,<5.6.0
+qtconsole>=5.5.1,<5.7.0
 qtpy>=2.1.0
 rtree>=0.9.7
 setuptools>=49.6.0
 sphinx>=0.6.6
-spyder-kernels>=2.5.2,<2.6.0
+spyder-kernels>=2.5.2,<2.7.0
 textdistance>=4.2.0
 three-merge>=0.1.1
 watchdog>=0.10.3
-rich>=13.9.0
-claude-agent-sdk>=0.1.0
+paramiko>=2.4.0; platform_system == "Windows"
 
-# windows.yml
-paramiko>=2.4.0
+# launcher + plugin AI Terminal (submódulo setup-spyder/)
+rich>=13.9
+pandas>=2.0
+pywinpty>=2; platform_system == "Windows"
+ptyprocess>=0.7; platform_system != "Windows"
 
-# tests.yml
+# testes
 coverage
 cython
 flaky
 matplotlib
-pandas
 pillow
 pytest<8.0
 pytest-cov
@@ -64,4 +72,4 @@ pytest-timeout
 pyyaml
 scipy
 sympy
-pywin32
+pywin32; platform_system == "Windows"

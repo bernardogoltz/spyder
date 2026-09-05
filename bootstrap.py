@@ -24,10 +24,6 @@ import time
 from logging import Formatter, StreamHandler, getLogger
 from pathlib import Path
 
-# Local imports
-from install_dev_repos import DEVPATH, REPOS, install_repo
-
-
 # =============================================================================
 # ---- Setup logger
 # =============================================================================
@@ -66,7 +62,9 @@ parser.add_argument('--filter-log', default='',
                          "messages should be shown. e.g., "
                          "spyder.plugins.completion,spyder.plugins.editor")
 parser.add_argument('--no-install', action='store_true', default=False,
-                    help="Do not install Spyder or its subrepos")
+                    help="Kept for compatibility; this fork has no subrepos "
+                         "to install (spyder-kernels, python-lsp-server and "
+                         "qtconsole come from PyPI)")
 parser.add_argument('spyder_options', nargs='*')
 
 args = parser.parse_args()
@@ -75,49 +73,7 @@ assert args.gui in (None, 'pyqt5', 'pyside2'), \
        "Invalid GUI toolkit option '%s'" % args.gui
 
 
-# =============================================================================
-# ---- Install sub repos
-# =============================================================================
-installed_dev_repo = False
-if not args.no_install:
-    prev_branch = None
-    boot_branch_file = DEVPATH / ".boot_branch.txt"
-    if boot_branch_file.exists():
-        prev_branch = boot_branch_file.read_text()
-
-    result = subprocess.run(
-        ["git", "merge-base", "--fork-point", "master"],
-        capture_output=True
-    )
-    branch = "master" if result.stdout else "not master"
-    boot_branch_file.write_text(branch)
-
-    logger.info("Previous root branch: %s; current root branch: %s",
-                prev_branch, branch)
-
-    if branch != prev_branch:
-        logger.info("Detected root branch change to/from master. "
-                    "Will reinstall Spyder in editable mode.")
-        REPOS[DEVPATH.name]["editable"] = False
-
-    for name in REPOS.keys():
-        if not REPOS[name]['editable']:
-            install_repo(name)
-            installed_dev_repo = True
-        else:
-            logger.info("%s installed in editable mode", name)
-
-if installed_dev_repo:
-    logger.info("Restarting bootstrap to pick up installed subrepos")
-    if '--' in sys.argv:
-        sys.argv.insert(sys.argv.index('--'), '--no-install')
-    else:
-        sys.argv.append('--no-install')
-    result = subprocess.run([sys.executable, *sys.argv])
-    sys.exit(result.returncode)
-
 # Local imports
-# Must follow install_repo in case Spyder was not originally installed.
 from spyder import get_versions
 
 logger.info("Executing Spyder from source checkout")

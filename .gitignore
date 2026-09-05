@@ -42,10 +42,6 @@ result.xml
 # Pylint dirs/files
 .pylint.d/
 
-# Ignore setuptools development files in the PyLS subrepo
-external-deps/python-lsp-server/.installation-dir/
-
 # uv
 .venv/
 uv.lock
-.spyder-lab/
