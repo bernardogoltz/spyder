@@ -28,27 +28,12 @@ def create_qss_style(color_scheme):
         IPython: .error, .in-prompt, .out-prompt, etc
     """
 
-    def give_font_weight(is_bold):
-        if is_bold:
-            return 'bold'
-        else:
-            return 'normal'
-
-    def give_font_style(is_italic):
-        if is_italic:
-            return 'italic'
-        else:
-            return 'normal'
-
     color_scheme = get_color_scheme(color_scheme)
-    fon_c, fon_fw, fon_fs = color_scheme['normal']
-    font_color =  fon_c
-    if dark_color(font_color):
-        in_prompt_color = 'navy'
-        out_prompt_color = 'darkred'
-    else:
-        in_prompt_color = 'lime'
-        out_prompt_color = 'red'
+    font_color = color_scheme['normal'][0]
+    # Keep prompts in the same visual language as the selected syntax theme,
+    # including custom themes, instead of using fixed terminal colors.
+    in_prompt_color = color_scheme['keyword'][0]
+    out_prompt_color = color_scheme['number'][0]
     background_color = color_scheme['background']
     error_color = 'red'
     in_prompt_number_font_weight = 'bold'
@@ -59,6 +44,7 @@ def create_qss_style(color_scheme):
     sheet = """QPlainTextEdit, QTextEdit, ControlWidget {{
                                           color: {} ;
                                           background-color: {};
+                                          border: 0;
                                          }}
               .error {{ color: {}; }}
               .in-prompt {{ color: {}; }}

@@ -124,6 +124,12 @@ class ShellWidget(NamepaceBrowserWidget, HelpWidget, DebuggingWidget,
         self.is_spyder_kernel = is_spyder_kernel
         self._cwd = ''
 
+        # Give prompts and output room without changing text, line spacing or
+        # qtconsole's scroll handling. Document margins also enter qtconsole's
+        # width calculations, so wrapped output stays inside the viewport.
+        self.font_changed.connect(self._update_document_margins)
+        self._update_document_margins(self.font)
+
         # Keyboard shortcuts
         # Registered here to use shellwidget as the parent
         self.shortcuts = self.create_shortcuts()
@@ -158,6 +164,13 @@ class ShellWidget(NamepaceBrowserWidget, HelpWidget, DebuggingWidget,
         # modules that don't come with them.
         self.show_modules_message = is_pynsist() or running_in_mac_app()
         self.shutdown_lock = Lock()
+
+    def _update_document_margins(self, font):
+        """Keep console and pager padding proportional to the console font."""
+        margin = max(8, round(QtGui.QFontMetricsF(font).height() * 0.6))
+        for control in (self._control, self._page_control):
+            if control is not None:
+                control.document().setDocumentMargin(margin)
 
     # ---- Public API ---------------------------------------------------------
     def shutdown_kernel(self):

@@ -17,10 +17,11 @@ import os.path as osp
 # Third library imports
 from qtpy import PYQT5
 from qtpy.compat import getopenfilenames, getsavefilename
-from qtpy.QtCore import Qt, Signal, Slot
+from qtpy.QtCore import QEvent, Qt, Signal, Slot
 from qtpy.QtGui import QCursor
-from qtpy.QtWidgets import (QApplication, QHBoxLayout, QInputDialog,
-                            QMessageBox, QVBoxLayout, QWidget)
+from qtpy.QtWidgets import (QAbstractItemView, QApplication, QFrame,
+                            QInputDialog, QLabel, QMessageBox, QVBoxLayout,
+                            QWidget)
 from spyder_kernels.utils.iofuncs import iofunctions
 from spyder_kernels.utils.misc import fix_reference_name
 from spyder_kernels.utils.nsview import REMOTE_SETTINGS
@@ -37,6 +38,60 @@ from spyder.widgets.helperwidgets import FinderLineEdit
 
 # Constants
 VALID_VARIABLE_CHARS = r"[^\w+*=¡!¿?'\"#$%&()/<>\-\[\]{}^`´;,|¬]*\w"
+
+
+class NamespaceTableView(RemoteCollectionsEditorTableView):
+    """Variable table with comfortable spacing and useful empty states."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setFrameShape(QFrame.NoFrame)
+        self.setShowGrid(False)
+        self.setAlternatingRowColors(True)
+        self.setWordWrap(False)
+        self.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        self.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
+        self._update_row_height()
+
+        # Keep the viewport interactive for paste, context menus and drops.
+        self.empty_message = QLabel(self.viewport())
+        self.empty_message.setAlignment(Qt.AlignCenter)
+        self.empty_message.setWordWrap(True)
+        self.empty_message.setTextFormat(Qt.PlainText)
+        self.empty_message.setAttribute(Qt.WA_TransparentForMouseEvents)
+        empty_layout = QVBoxLayout(self.viewport())
+        empty_layout.setContentsMargins(24, 24, 24, 24)
+        empty_layout.addWidget(self.empty_message)
+
+        for signal in (self.proxy_model.modelReset,
+                       self.proxy_model.rowsInserted,
+                       self.proxy_model.rowsRemoved,
+                       self.proxy_model.layoutChanged):
+            signal.connect(self._update_empty_message)
+        self._update_empty_message()
+
+    def _update_row_height(self):
+        """Use a fixed default height without measuring every variable."""
+        self.verticalHeader().setDefaultSectionSize(
+            max(28, self.fontMetrics().height() + 12))
+
+    def changeEvent(self, event):
+        super().changeEvent(event)
+        if event.type() == QEvent.FontChange:
+            self._update_row_height()
+
+    def _update_empty_message(self, *args):
+        """Distinguish an empty namespace from a search with no matches."""
+        empty = self.proxy_model.rowCount() == 0
+        if empty:
+            if self.source_model.total_rows:
+                message = _("No matching variables.\n"
+                            "Try another name or type, or clear the search.")
+            else:
+                message = _("No variables to show.\n"
+                            "Run code, import data, or review the filters.")
+            self.empty_message.setText(message)
+        self.empty_message.setVisible(empty)
 
 
 class NamespaceBrowser(QWidget, SpyderWidgetMixin):
@@ -80,7 +135,7 @@ class NamespaceBrowser(QWidget, SpyderWidgetMixin):
             self.refresh_table()
         else:
             # Widgets
-            self.editor = RemoteCollectionsEditorTableView(
+            self.editor = NamespaceTableView(
                 self,
                 data=None,
                 shellwidget=self.shellwidget,
@@ -118,15 +173,22 @@ class NamespaceBrowser(QWidget, SpyderWidgetMixin):
     def set_text_finder(self, text_finder):
         """Bind NamespaceBrowsersFinder to namespace browser."""
         self.text_finder = text_finder
-        if self.finder_is_visible:
-            self.text_finder.setText(self.last_find)
         self.editor.finder = text_finder
+        if self.finder_is_visible:
+            if text_finder.text() == self.last_find:
+                # Restoring identical text emits no textChanged signal. The
+                # inactive namespace may have received a paginated refresh.
+                if self.last_find:
+                    text_finder.load_all_variables()
+                self.editor.set_regex()
+            else:
+                text_finder.setText(self.last_find)
 
         return self.finder_is_visible
 
     def save_finder_state(self, last_find, finder_visibility):
         """Save last finder/search text input and finder visibility."""
-        if last_find and finder_visibility:
+        if finder_visibility:
             self.last_find = last_find
         self.finder_is_visible = finder_visibility
 
@@ -156,6 +218,13 @@ class NamespaceBrowser(QWidget, SpyderWidgetMixin):
         """Set data."""
         if data != self.editor.source_model.get_data():
             self.editor.set_data(data)
+            if (self.text_finder is not None
+                    and self.text_finder._parent is self.editor
+                    and self.text_finder.text()):
+                # A kernel refresh resets pagination; keep the active search
+                # complete even when its matches fall beyond the first page.
+                self.editor.source_model.load_all()
+                self.editor.set_regex()
             self.editor.adjust_columns()
 
     @Slot(list)
@@ -302,20 +371,37 @@ class NamespacesBrowserFinder(FinderLineEdit):
     # To load all variables when filtering.
     load_all = False
 
+    def __init__(self, parent, callback=None, main=None,
+                 regex_base=VALID_VARIABLE_CHARS):
+        super().__init__(parent, main=main, regex_base=regex_base)
+        self.setPlaceholderText(_("Filter variables by name or type"))
+        self.setAccessibleName(_("Filter variables"))
+        self.setClearButtonEnabled(True)
+        self.setMinimumHeight(30)
+        self.setTextMargins(4, 0, 4, 0)
+        self.update_parent(parent, callback=callback, main=main)
+
     def update_parent(self, parent, callback=None, main=None):
         self._parent = parent
         self.main = main
+        self.load_all = False
         try:
             self.textChanged.disconnect()
         except TypeError:
             pass
+        # Also covers paste, the clear button and restoring a saved search.
+        self.textChanged.connect(self._prepare_filter)
         if callback:
             self.textChanged.connect(callback)
+
+    def _prepare_filter(self, text):
+        if text:
+            self.load_all_variables()
 
     def load_all_variables(self):
         """Load all variables to correctly filter them."""
         if not self.load_all:
-            self._parent.parent().editor.source_model.load_all()
+            self._parent.source_model.load_all()
         self.load_all = True
 
     def keyPressEvent(self, event):
@@ -333,5 +419,4 @@ class NamespacesBrowserFinder(FinderLineEdit):
             # TODO: Check if an editor needs to be shown
             pass
         else:
-            self.load_all_variables()
             super(NamespacesBrowserFinder, self).keyPressEvent(event)

@@ -424,9 +424,10 @@ class VariableExplorerWidget(ShellConnectMainWidget):
             )
 
             finder_layout = QHBoxLayout()
-            finder_layout.addWidget(self.finder_close_button)
             finder_layout.addWidget(self.text_finder)
-            finder_layout.setContentsMargins(0, 0, 0, 0)
+            finder_layout.addWidget(self.finder_close_button)
+            finder_layout.setSpacing(6)
+            finder_layout.setContentsMargins(8, 6, 8, 6)
             self.finder.setLayout(finder_layout)
 
             layout = self.layout()

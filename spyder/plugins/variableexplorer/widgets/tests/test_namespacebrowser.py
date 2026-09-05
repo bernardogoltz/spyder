@@ -149,7 +149,8 @@ def test_keys_sorted_and_sort_with_large_rows(namespacebrowser, qtbot):
     assert data(model, 0, 0) == 'i'
 
 
-def test_filtering_with_large_rows(namespacebrowser, qtbot):
+@pytest.mark.parametrize('programmatic', [False, True])
+def test_filtering_with_large_rows(namespacebrowser, qtbot, programmatic):
     """
     Test that filtering works when there's a large number of rows.
     """
@@ -183,12 +184,24 @@ def test_filtering_with_large_rows(namespacebrowser, qtbot):
     assert data(model, 49, 0) == 'e49'
 
     # Assert we can filter variables not loaded yet.
-    qtbot.keyClicks(text_finder, "t19")
+    if programmatic:
+        # Restoring a search and pasting from the context menu bypass keyPress.
+        text_finder.setText("t19")
+    else:
+        qtbot.keyClicks(text_finder, "t19")
     assert model.rowCount() == 10
 
     # Assert all variables effectively start with 't19'.
     for i in range(10):
         assert data(model, i, 0) == 't19{}'.format(i)
+
+    # A refresh must preserve matches outside the first loaded page.
+    refreshed_variables = variables.copy()
+    # Replace a record, since the editor still references the original data.
+    refreshed_variables['t199'] = dict(
+        refreshed_variables['t199'], view='2')
+    browser.process_remote_view(refreshed_variables)
+    assert model.rowCount() == 10
 
     # Reset text_finder widget.
     text_finder.setText('')
@@ -208,6 +221,89 @@ def test_filtering_with_large_rows(namespacebrowser, qtbot):
     # Assert that can find 'z' among the declared variables.
     qtbot.keyClicks(text_finder, "z")
     assert model.rowCount() == 1
+
+
+def test_same_search_after_inactive_namespace_refresh(namespacebrowser, qtbot):
+    """Switching consoles reapplies an unchanged search after pagination."""
+    first = namespacebrowser
+    second = NamespaceBrowser(None)
+    second.set_shellwidget(Mock())
+    second.setup()
+    qtbot.addWidget(second)
+
+    variables = {
+        'v{:03d}'.format(i): {
+            'type': 'int', 'size': 1, 'view': str(i),
+            'python_type': 'int', 'numpy_type': 'Unknown'}
+        for i in range(200)
+    }
+    first.set_data(variables)
+    second.set_data(variables)
+    finder = NamespacesBrowserFinder(
+        first.editor, callback=first.editor.set_regex, main=first)
+    first.set_text_finder(finder)
+    finder.setText('v19')
+    first.save_finder_state('v19', True)
+    assert first.editor.model.rowCount() == 20
+
+    finder.update_parent(
+        second.editor, callback=second.editor.set_regex, main=second)
+    second.set_text_finder(finder)
+    finder.clear()
+    finder.setText('v19')
+    second.save_finder_state('v19', True)
+    assert second.editor.model.rowCount() == 20
+
+    refreshed_variables = variables.copy()
+    refreshed_variables['v199'] = dict(variables['v199'], view='changed')
+    first.process_remote_view(refreshed_variables)
+    assert first.editor.source_model.canFetchMore(QModelIndex())
+
+    # The shared line edit already contains the restored text: Qt emits no
+    # textChanged signal, but the first table must still reload its matches.
+    finder.update_parent(
+        first.editor, callback=first.editor.set_regex, main=first)
+    first.set_text_finder(finder)
+    assert first.editor.model.rowCount() == 20
+    assert not first.editor.source_model.canFetchMore(QModelIndex())
+    assert not first.editor.empty_message.isVisible()
+
+
+def test_empty_namespace_and_search_message(namespacebrowser):
+    """Keep the table usable while explaining empty search results."""
+    browser = namespacebrowser
+    editor = browser.editor
+    message = editor.empty_message
+    assert message.isVisible()
+    empty_text = message.text()
+    assert message.testAttribute(Qt.WA_TransparentForMouseEvents)
+
+    finder = NamespacesBrowserFinder(
+        editor, callback=editor.set_regex, main=browser)
+    browser.set_text_finder(finder)
+    browser.set_data({'answer': {
+        'type': 'int', 'size': 1, 'view': '42', 'python_type': 'int',
+        'numpy_type': 'Unknown'}})
+    assert not message.isVisible()
+
+    finder.setText('missing')
+    assert message.isVisible()
+    assert message.text() != empty_text
+    finder.clear()
+    assert editor.model.rowCount() == 1
+    assert not message.isVisible()
+
+    browser.set_data({})
+    assert message.isVisible()
+    assert message.text() == empty_text
+
+
+def test_cleared_search_state_is_saved(namespacebrowser):
+    """A cleared search should not reappear when switching consoles."""
+    browser = namespacebrowser
+    browser.save_finder_state('answer', True)
+    browser.save_finder_state('', True)
+    assert browser.last_find == ''
 
 
 if __name__ == "__main__":
