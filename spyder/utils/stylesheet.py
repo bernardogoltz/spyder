@@ -141,7 +141,7 @@ class AppStylesheet(SpyderStyleSheet):
         # Set menu item properties
         css["QMenu::item"].setValues(
             height='1.4em',
-            fontSize='0.7em',
+            fontSize='0.9em',
             padding='4px 24px 4px 8px',
             # TODO: This requires a fix in qstylizer
             # iconSize='0.8em'

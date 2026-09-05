@@ -23,7 +23,7 @@ APPEARANCE = {
     'icon_theme': 'spyder 3',
     # Global Spyder fonts
     'font/family': MONOSPACE,
-    'font/size': MEDIUM,
+    'font/size': 11 if WIN else MEDIUM,
     'font/italic': False,
     'font/bold': False,
     'rich_font/family': SANS_SERIF,

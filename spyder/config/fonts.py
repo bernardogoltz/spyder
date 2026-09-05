@@ -37,6 +37,7 @@ if sys.platform == 'darwin':
     MONOSPACE = ['Menlo'] + MONOSPACE
     BIG = MEDIUM = SMALL = 11
 elif os.name == 'nt':
+    SANS_SERIF = ['Segoe UI'] + SANS_SERIF
     BIG = MEDIUM = 10
     SMALL = 9
 elif is_ubuntu():

@@ -70,7 +70,9 @@ def get_font(section='appearance', option='font', font_size_delta=0):
         families = CONF.get(section, option+"/family", None)
 
         if families is None:
-            return QFont()
+            font = QFont()
+            font.setStyleStrategy(QFont.PreferAntialias)
+            return font
 
         family = get_family(families)
         weight = QFont.Normal
@@ -86,6 +88,7 @@ def get_font(section='appearance', option='font', font_size_delta=0):
 
     size = CONF.get(section, option+'/size', 9) + font_size_delta
     font.setPointSize(size)
+    font.setStyleStrategy(QFont.PreferAntialias)
     return font
 
 
