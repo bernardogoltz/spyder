@@ -31,6 +31,7 @@ from qtpy.QtWidgets import (QAction, QApplication, QDialog, QHBoxLayout,
 
 # Local imports
 from spyder.config.base import running_in_mac_app
+from spyder.config.fonts import load_bundled_fonts
 from spyder.config.manager import CONF
 from spyder.py3compat import is_text_string, to_text_string
 from spyder.utils.icon_manager import ima
@@ -113,6 +114,9 @@ def qapplication(translate=True, test_time=3):
 
         # Set application name for KDE. See spyder-ide/spyder#2207.
         app.setApplicationName('Spyder')
+
+    # Make the fonts we ship (e.g. JetBrains Mono) available to Qt
+    load_bundled_fonts()
 
     if (sys.platform == "darwin"
             and not running_in_mac_app()
