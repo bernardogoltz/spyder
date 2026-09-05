@@ -535,24 +535,33 @@ Não depender de rede, conta ou credencial real nesses testes.
 
 ## 11. Critérios de aceitação
 
-- [ ] `uv run setup-spyder` preserva o comportamento atual.
-- [ ] `uv run setup-spyder --agent codex` abre o Codex no painel quando disponível.
-- [ ] `uv run setup-spyder --agent claude` abre o Claude no painel quando disponível.
-- [ ] O painel é um terminal TTY real, com ANSI, resize e `Ctrl+C`.
-- [ ] Nenhuma credencial ou token de API é salvo pelo plugin.
-- [ ] Nenhuma flag de bypass é adicionada implicitamente.
-- [ ] Nenhum servidor local é necessário para o transporte do terminal.
-- [ ] Nenhum processo do agente fica órfão após o encerramento.
-- [ ] A wheel contém o entry point e todos os assets web.
-- [ ] O Spyder abre mesmo sem CLI ou backend PTY disponível.
-- [ ] O perfil do projeto não sobrescreve preferências em toda inicialização.
-- [ ] O pacote não contém caminho absoluto nem dependência editável para um checkout local.
-- [ ] `uv add setup-spyder` instala o Spyder de `github.com/bernardogoltz/spyder`, não o pacote oficial do PyPI.
-- [ ] A versão importável de `spyder` é a do fork pinado, não `5.5.6`.
-- [ ] A distribuição `spyder` do fork não empacota `setup_spyder` nem o script `setup-spyder`.
-- [ ] O projeto não exige Conda.
+Estado em 2026-09-05 (setup-spyder 0.3.0, fork em `42de553c5`). "suíte" =
+`setup-spyder/tests` em modo estrito; "consumidor" = projeto uv limpo que
+instala o launcher por Git e o fork pelo commit pinado.
 
+- [x] `uv run setup-spyder` preserva o comportamento atual. *(suíte: phase0)*
+- [ ] `uv run setup-spyder --agent codex` abre o Codex no painel quando disponível. *(provado com CLI falsa no PATH; `codex` real não instalado nesta máquina)*
+- [ ] `uv run setup-spyder --agent claude` abre o Claude no painel quando disponível. *(provado com CLI falsa e com `cmd.exe` real no painel; sessão real do `claude` ainda por confirmar à mão)*
+- [x] O painel é um terminal TTY real, com ANSI, resize e `Ctrl+C`. *(suíte: `tests/pty`, ConPTY real via pywinpty)*
+- [x] Nenhuma credencial ou token de API é salvo pelo plugin. *(o plugin não conhece credenciais; só `codex`/`claude` no PATH)*
+- [x] Nenhuma flag de bypass é adicionada implicitamente. *(varredura estática na suíte)*
+- [x] Nenhum servidor local é necessário para o transporte do terminal. *(QWebChannel; `tests/pty` confirma zero portas em escuta — o `PtyProcess` do pywinpty abre loopback TCP, por isso o backend usa `winpty.PTY` direto)*
+- [x] Nenhum processo do agente fica órfão após o encerramento. *(Job Object no Windows tanto no painel quanto no launcher — matar o `setup-spyder` derruba Spyder, kernels, pylsp e QtWebEngine; `tests/pty` e `tests/e2e` cobrem)*
+- [x] A wheel contém o entry point e todos os assets web. *(`tests/integration/test_packaging.py` contra a wheel construída)*
+- [x] O Spyder abre mesmo sem CLI ou backend PTY disponível. *(suíte: `tests/qt/test_backend_failure.py`, `tests/integration/test_plugin_discovery.py`, `tests/e2e`)*
+- [x] O perfil do projeto não sobrescreve preferências em toda inicialização. *(seed versionado, `SEED_VERSION`)*
+- [x] O pacote não contém caminho absoluto nem dependência editável para um checkout local.
+- [x] `uv add --dev git+https://github.com/bernardogoltz/setup-spyder` instala o Spyder de `github.com/bernardogoltz/spyder`, não o pacote oficial do PyPI. *(o PyPI recusa dependência por URL direta, então o launcher é instalado por Git ou pela wheel anexada ao release, nunca por `uv add setup-spyder` do índice)*
+- [x] A versão importável de `spyder` é a do fork pinado, não `5.5.6`. *(consumidor: `5.6.0.dev0`)*
+- [x] A distribuição `spyder` do fork não empacota `setup_spyder` nem o script `setup-spyder`.
+- [x] O projeto não exige Conda.
 
+Decisões tomadas na execução que divergem do texto acima:
+
+- `--profile project` (`<raiz>/.spyproject/setup-spyder/`) é o **padrão**, não o efêmero (§5.1): os testes da Fase 0 congelaram perfil persistente por padrão e o seed versionado só faz sentido com persistência. `--ephemeral` / `--profile ephemeral` continuam disponíveis.
+- Quando `start_session()` é acionado explicitamente sem nenhuma CLI resolvível, o painel abre o shell do usuário (`COMSPEC`/`SHELL`, como lista de um elemento) com a dica de instalação; `refresh_providers()` e o autostart nunca iniciam nada nesse caso.
+- Backend POSIX (`ptyprocess` + `os.killpg`) escrito mas não executado: só Windows foi testado.
+- `pyqt5-qt5`/`pyqtwebengine-qt5` acima de 5.15.2 não têm wheel Windows; o launcher declara `<5.15.3; platform_system == 'Windows'` para a resolução universal do uv não quebrar consumidores Windows.
 
 ## 12. Riscos e mitigação
 

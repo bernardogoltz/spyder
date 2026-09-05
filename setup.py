@@ -194,6 +194,9 @@ install_requires = [
     'pyls-spyder>=0.4.0',
     'pyqt5>=5.10,<5.16',
     'pyqtwebengine>=5.10,<5.16',
+    # The Qt runtime wheels above 5.15.2 are Linux/macOS only.
+    'pyqt5-qt5<5.15.3;platform_system=="Windows"',
+    'pyqtwebengine-qt5<5.15.3;platform_system=="Windows"',
     'python-lsp-server[all]>=1.12.0,<1.13.0',
     'pyxdg>=0.26;platform_system=="Linux"',
     'pyzmq>=24.0.0',
